@@ -1,14 +1,17 @@
 import cv2 as cv
 import numpy as np
 import random
-import bm3d
 
 class DetectShape:
     def __init__(self, image_name):
         self.image = cv.imread(image_name)
+        self.original = self.image.copy()
         self.output = np.zeros((self.image.shape[0], self.image.shape[1], 3), dtype=np.uint8)
+
+        self.w = self.image.shape[0]
+        self.h = self.image.shape[1]
     
-    def show_image(self):
+    def show_transformed_image(self):
         cv.imshow("Image", self.image)
         cv.waitKey()
     
@@ -31,6 +34,11 @@ class DetectShape:
         threshold_two = int(min(255, (1.0 - sigma) * v))
 
         self.image = cv.Canny(self.image, threshold_one, threshold_two)
+
+    def clean_up(self, dilation_iterations=2):
+        kernel = np.ones((4, 5), dtype=np.uint8)
+        d_im = cv.dilate(self.image, kernel, iterations=dilation_iterations)
+        self.image = cv.erode(d_im, kernel, iterations=1)
     
     def draw_lines(self):
         hough_lines = cv.HoughLines(self.image, 1, np.pi / 180, 70, None, 0, 0)
@@ -59,7 +67,31 @@ class DetectShape:
             epsilon = 0.04 * cv.arcLength(contour, True)
             approx = cv.approxPolyDP(contour, epsilon, True)
 
-            if len(approx) > 100: continue
-
             cv.drawContours(self.output, [approx], 0, (0, 255, 0), 2)
-            # cv.rectangle(self.output, (int(bound_rect[0]), int(bound_rect[1])), (int(bound_rect[0]+bound_rect[2]), int(bound_rect[1]+bound_rect[3])), color, 2)
+            cv.rectangle(self.original, (int(bound_rect[0]), int(bound_rect[1])), (int(bound_rect[0]+bound_rect[2]), int(bound_rect[1]+bound_rect[3])), color, 2)
+
+            text = "Shape Not Recognized"
+            if len(approx) == 3:
+                text = "Triangle"
+            elif len(approx) == 5:
+                text = "Pentagon"
+
+            font                    = cv.FONT_HERSHEY_SIMPLEX
+            fontScale               = 1
+            fontColor               = (0, 255, 0)
+            thickness               = 1
+            lineType                = 2
+            text_width, text_height = cv.getTextSize(text, font, fontScale, lineType)[0]
+            bottomLeftCornerOfText  = (min(x, self.h - text_width), y + h//2)
+
+            cv.putText(self.original,text, 
+                bottomLeftCornerOfText, 
+                font, 
+                fontScale,
+                fontColor,
+                thickness,
+                lineType)
+    
+    def show_result(self):
+        cv.imshow("Image", self.original)
+        cv.waitKey()
