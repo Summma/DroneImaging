@@ -20,6 +20,7 @@ class DetectShape:
         cv.waitKey()
     
     def grey_image(self):
+        self.image = cv.addWeighted(self.image, 2.5, self.image, 0, 0.2)
         self.image = cv.cvtColor(self.image, cv.COLOR_BGR2GRAY)
     
     def blur_image(self):
@@ -35,10 +36,10 @@ class DetectShape:
 
         self.image = cv.Canny(self.image, threshold_one, threshold_two)
 
-    def clean_up(self, dilation_iterations=2):
+    def clean_up(self, dilation_iterations=2, erode_iterations=1):
         kernel = np.ones((4, 5), dtype=np.uint8)
         d_im = cv.dilate(self.image, kernel, iterations=dilation_iterations)
-        self.image = cv.erode(d_im, kernel, iterations=1)
+        self.image = cv.erode(d_im, kernel, iterations=erode_iterations)
     
     def draw_lines(self):
         hough_lines = cv.HoughLines(self.image, 1, np.pi / 180, 70, None, 0, 0)
@@ -61,14 +62,14 @@ class DetectShape:
         contours, _ = cv.findContours(self.image.copy(), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
         for contour in contours:
-            (x, y, w ,h) = bound_rect = cv.boundingRect(contour)
-            color = (random.randint(0,256), random.randint(0,256), random.randint(0,256))
+            (x, y, w ,h) = cv.boundingRect(contour)
+            color = (random.randint(0, 256), random.randint(0, 256), random.randint(0, 256))
 
             epsilon = 0.04 * cv.arcLength(contour, True)
             approx = cv.approxPolyDP(contour, epsilon, True)
 
             cv.drawContours(self.output, [approx], 0, (0, 255, 0), 2)
-            cv.rectangle(self.original, (int(bound_rect[0]), int(bound_rect[1])), (int(bound_rect[0]+bound_rect[2]), int(bound_rect[1]+bound_rect[3])), color, 2)
+            cv.rectangle(self.original, (x, y), (x+w, y+h), color, 2)
 
             text = "Shape Not Recognized"
             if len(approx) == 3:
@@ -95,3 +96,18 @@ class DetectShape:
     def show_result(self):
         cv.imshow("Image", self.original)
         cv.waitKey()
+
+if __name__ == '__main__':
+    # shape_detector = DetectShape('Images/Blurry.jpg')
+    # shape_detector = DetectShape('Images/TestCaseTrial.jpg')
+    shape_detector = DetectShape('Images/Pentagon Small.jpg')
+    shape_detector.show_transformed_image()
+    shape_detector.grey_image()
+    shape_detector.blur_image()
+    shape_detector.blur_image()
+    shape_detector.blur_image()
+    shape_detector.edge_detection()
+    shape_detector.clean_up(3, 1)
+    shape_detector.detect_shapes()
+    shape_detector.show_result()
+    shape_detector.show_transformed_image()
