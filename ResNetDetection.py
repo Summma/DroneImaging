@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
-from torch.nn.functional import relu, max_pool2d, adaptive_avg_pool2d
+import torch.optim as optim
+import torchvision
+import torchvision.transforms as transforms
+from torch.nn.functional import relu
 
 EXPANSION = 4
 
@@ -19,7 +22,7 @@ class CNNBlock(nn.Module):
                                kernel_size=1, stride=1, padding=0)
         self.bn3 = nn.BatchNorm2d(num_features=out_channels * EXPANSION)
 
-        self.relu = relu()
+        self.relu = relu
         self.id_downsample = id_downsample
     
     def forward(self, x):
@@ -45,11 +48,11 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.in_channels = 64
 
-        self.conv1 = nn.Conv2d(in_channels=image_channels, out_channels=64, kernel_size=7, stride=2, padding=3)
+        self.conv1 = nn.Conv2d(in_channels=self.in_channels, out_channels=64, kernel_size=7, stride=2, padding=3)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = relu
 
-        self.maxpool = max_pool2d(kernel_size=3, stride=2, padding=1)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         # Actual Resnet
         self.layer1 = self._make_layer(block, layers[0], out_channels=64, stride=1)
@@ -57,7 +60,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, layers[2], out_channels=256, stride=2)
         self.layer4 = self._make_layer(block, layers[3], out_channels=512, stride=2)
 
-        self.avgpool = adaptive_avg_pool2d((1,1))
+        self.avgpool = nn.AdaptiveAvgPool2d((1,1))
         self.fc = nn.Linear(512 * EXPANSION, num_classes)
     
     def forward(self, x):
@@ -85,7 +88,7 @@ class ResNet(nn.Module):
             id_downsample = nn.Sequential(
                 nn.Conv2d(in_channels=self.in_channels, out_channels=out_channels * EXPANSION, 
                                                     kernel_size=1, stride=stride),
-                nn.BatchNorm2d(out_channels=out_channels * EXPANSION))
+                nn.BatchNorm2d(num_features=out_channels * EXPANSION))
             
         layers.append(block(self.in_channels, out_channels, id_downsample, stride))
         self.in_channels = out_channels * EXPANSION
@@ -109,10 +112,44 @@ def ResNet152(img_channels=3, num_classes=1000):
 
 
 def test():
+    transform = transforms.Compose([
+                    transforms.Resize(256),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.RandomVerticalFlip(),
+                    transforms.RandomRotation(degrees=45),
+                    transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ])
+    train_dataset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=None)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=2)
+
     net = ResNet50
     x = torch.randn(2, 3, 224, 224)
-    y = net(x).to('cuda')
-    print(y.shape)
+    model = net(x).to('cpu')
+    
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+    print([a for a in train_loader])
+    
+    for epoch in range(10):
+        for inputs, labels in train_loader:
+            # Move input and label tensors to the device
+            inputs = inputs.to("cpu")
+            labels = labels.to("cpu")
+
+            # Zero out the optimizer
+            optimizer.zero_grad()
+
+            # Forward pass
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+
+            # Backward pass
+            loss.backward()
+            optimizer.step()
 
 
 if __name__ == '__main__':
