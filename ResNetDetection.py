@@ -48,7 +48,7 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.in_channels = 64
 
-        self.conv1 = nn.Conv2d(in_channels=self.in_channels, out_channels=64, kernel_size=7, stride=2, padding=3)
+        self.conv1 = nn.Conv2d(in_channels=image_channels, out_channels=64, kernel_size=7, stride=2, padding=3)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = relu
 
@@ -112,44 +112,9 @@ def ResNet152(img_channels=3, num_classes=1000):
 
 
 def test():
-    transform = transforms.Compose([
-                    transforms.Resize(256),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.RandomVerticalFlip(),
-                    transforms.RandomRotation(degrees=45),
-                    transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
-                    transforms.CenterCrop(224),
-                    transforms.ToTensor(),
-                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                ])
-    train_dataset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=None)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=2)
-
-    net = ResNet50
-    x = torch.randn(2, 3, 224, 224)
+    net = ResNet50(img_channels=1, num_classes=10).to('cpu')
+    x = torch.randn(2, 1, 28, 28)
     model = net(x).to('cpu')
-    
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-    print([a for a in train_loader])
-    
-    for epoch in range(10):
-        for inputs, labels in train_loader:
-            # Move input and label tensors to the device
-            inputs = inputs.to("cpu")
-            labels = labels.to("cpu")
-
-            # Zero out the optimizer
-            optimizer.zero_grad()
-
-            # Forward pass
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-
-            # Backward pass
-            loss.backward()
-            optimizer.step()
 
 
 if __name__ == '__main__':
