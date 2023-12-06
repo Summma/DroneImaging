@@ -1,7 +1,9 @@
 dataclasses==0.8
 numpy==1.19.5
 opencv-python==4.8.1.78
+Pillow==8.4.0
 PyWavelets==1.1.1
 scipy==1.5.4
-torch==1.10.2
+torch==1.8.1
+torchvision==0.9.1
 typing-extensions==4.1.1
