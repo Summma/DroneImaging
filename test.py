@@ -73,8 +73,6 @@ class Block(nn.Module):
       x = self.relu(x)
       return x
 
-
-        
         
 class ResNet(nn.Module):
     def __init__(self, ResBlock, layer_list, num_classes, num_channels=3):
@@ -128,7 +126,8 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
         
-        
+
+# All the various ResNet architectures based on your needs. These are not the only ones, just examples.
 def ResNet50(num_classes, channels=3):
     return ResNet(Bottleneck, [3,4,6,3], num_classes, channels)
     
@@ -140,6 +139,10 @@ def ResNet152(num_classes, channels=3):
 
 
 def test():
+    # Loading all the data.
+    # We don't use them, but transforms could end up be useful. This p much just negates our need to use
+    # the ShapeBox.py filters because it effectively does the same thing. Though the pytorch library may be missing some.
+    # In that case, just use opencv to get the proper filters.
     transform_train = transforms.Compose([
         transforms.RandomHorizontalFlip(),
         transforms.RandomCrop(32, padding=4),
@@ -170,10 +173,15 @@ def test():
 
     testloader = torch.utils.data.DataLoader(test, batch_size=128,shuffle=False, num_workers=2)
 
+    # This is specific to the data set we're using right now, change this to the proper labels for our drone images
+    # (i.e Square, Triangle, Circle)
     classes = ['plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
+    # Defining a ResNet50 model
+    # Make sure to change this to cuda if we run it on a cuda enabled device for a performance boost!!
     model = ResNet50(channels=1, num_classes=10).to('cpu')
 
+    # Choosing the Loss Function, Optimizer, and Schedulers respectively.
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=0.0001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor = 0.1, patience=5)
@@ -183,16 +191,26 @@ def test():
         losses = []
         running_loss = 0
         for i, inp in enumerate(trainloader):
+            # Just a loading bar for training
             curr = 40*i//len(trainloader)
             print("|"+"="*curr+" "*(40-curr)+"|"+" "+str(round(i/len(trainloader)*100, 2))+"%")
+            
+            # Initialize training data and convert it to cpu
+            # Make sure to change this to cuda if we run it on a cuda enabled device for a performance boost!!
             inputs, labels = inp
             inputs, labels = inputs.to('cpu'), labels.to('cpu')
+
+            # Zero the gradient so it doesn't add on from the last iteration
             optimizer.zero_grad()
-        
+
+            # Get output from the ResNet Model
             outputs = model(inputs)
+
+            # Calculate and track lock using CrossEntropyLoss (LogLoss)
             loss = criterion(outputs, labels)
             losses.append(loss.item())
 
+            # Perform gradient descent (backward()) then back propagation (step())
             loss.backward()
             optimizer.step()
             
